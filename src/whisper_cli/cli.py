@@ -101,3 +101,7 @@ def main(files, model, output, fmt, stdout, language, quiet):
         sys.exit(1)
     elif failed > 0 and succeeded == 0:
         sys.exit(2)
+
+
+if __name__ == "__main__":
+    main()
