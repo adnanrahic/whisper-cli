@@ -107,3 +107,49 @@ class TestCliOutput:
         bad.write_bytes(b"fake")
         result = runner.invoke(main, [str(good), str(bad)])
         assert result.exit_code == 1
+
+    @patch("whisper_cli.cli.load_model")
+    @patch("whisper_cli.cli.transcribe_file")
+    @patch("whisper_cli.cli.check_ffmpeg", return_value=True)
+    def test_stdout_with_multiple_files_shows_headers(self, mock_ffmpeg, mock_transcribe, mock_load, runner, tmp_path):
+        a = tmp_path / "a.mp4"
+        a.write_bytes(b"fake")
+        b = tmp_path / "b.mp4"
+        b.write_bytes(b"fake")
+        mock_transcribe.return_value = [
+            {"start": 0.0, "end": 1.0, "text": " Hello."},
+        ]
+        result = runner.invoke(main, [str(a), str(b), "--stdout"])
+        assert result.exit_code == 0
+        assert "=== a.mp4 ===" in result.output
+        assert "=== b.mp4 ===" in result.output
+
+    @patch("whisper_cli.cli.load_model")
+    @patch("whisper_cli.cli.transcribe_file")
+    @patch("whisper_cli.cli.check_ffmpeg", return_value=True)
+    @patch("whisper_cli.cli.logging")
+    def test_quiet_flag_suppresses_logging(self, mock_logging, mock_ffmpeg, mock_transcribe, mock_load, runner, tmp_path):
+        audio = tmp_path / "test.mp4"
+        audio.write_bytes(b"fake")
+        mock_transcribe.return_value = [
+            {"start": 0.0, "end": 1.0, "text": " Hello."},
+        ]
+        mock_logger = MagicMock()
+        mock_logging.getLogger.return_value = mock_logger
+        result = runner.invoke(main, [str(audio), "--quiet"])
+        assert result.exit_code == 0
+        mock_logging.getLogger.assert_called_with("whisper")
+        mock_logger.setLevel.assert_called_once()
+
+    @patch("whisper_cli.cli.load_model")
+    @patch("whisper_cli.cli.transcribe_file")
+    @patch("whisper_cli.cli.check_ffmpeg", return_value=True)
+    def test_format_srt_writes_srt_file(self, mock_ffmpeg, mock_transcribe, mock_load, runner, tmp_path):
+        audio = tmp_path / "test.mp4"
+        audio.write_bytes(b"fake")
+        mock_transcribe.return_value = [
+            {"start": 0.0, "end": 1.0, "text": " Hello."},
+        ]
+        result = runner.invoke(main, [str(audio), "--format", "srt"])
+        assert result.exit_code == 0
+        assert (tmp_path / "test.srt").exists()
