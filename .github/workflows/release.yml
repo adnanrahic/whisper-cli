@@ -1,0 +1,68 @@
+name: Release Build
+
+on:
+  release:
+    types: [published]
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: macos-15
+            artifact_name: whisper-cli-macos-arm64
+            binary_name: whisper-cli
+          - os: ubuntu-latest
+            artifact_name: whisper-cli-linux-x86_64
+            binary_name: whisper-cli
+          - os: ubuntu-24.04-arm
+            artifact_name: whisper-cli-linux-arm64
+            binary_name: whisper-cli
+          - os: windows-latest
+            artifact_name: whisper-cli-windows-x86_64.exe
+            binary_name: whisper-cli.exe
+
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install PyTorch (CPU)
+        run: |
+          if [[ "$RUNNER_OS" == "macOS" ]]; then
+            pip install torch torchaudio
+          else
+            pip install torch torchaudio --index-url https://download.pytorch.org/whl/cpu
+          fi
+        shell: bash
+
+      - name: Install project and PyInstaller
+        run: |
+          pip install -e .
+          pip install pyinstaller
+
+      - name: Build binary
+        run: pyinstaller whisper-cli.spec --noconfirm
+
+      - name: Smoke test
+        run: ./dist/${{ matrix.binary_name }} --version
+        shell: bash
+
+      - name: Rename artifact
+        run: mv ./dist/${{ matrix.binary_name }} ./dist/${{ matrix.artifact_name }}
+        shell: bash
+
+      - name: Upload to Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: ./dist/${{ matrix.artifact_name }}
