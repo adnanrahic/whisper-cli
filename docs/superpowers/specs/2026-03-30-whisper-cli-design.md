@@ -14,18 +14,30 @@ whisper-cli <file1> [file2 ...] [options]
 
 | Flag | Short | Description | Default |
 |------|-------|-------------|---------|
-| `--model` | `-m` | Whisper model size: `tiny`, `base`, `small`, `medium`, `large` | `base` |
+| `--model` | `-m` | Whisper model size: `tiny`, `base`, `small`, `medium`, `large` (maps to latest variant, e.g. `large` = `large-v3`) | `base` |
 | `--output` | `-o` | Output directory for transcription files | Same directory as input file |
-| `--format` | `-f` | Output format: `txt`, `srt`, `vtt` | `txt` |
-| `--stdout` | | Print transcription to stdout instead of writing files | `false` |
+| `--format` | `-f` | Output format: `txt`, `srt`, `vtt` (single format per invocation) | `txt` |
+| `--stdout` | | Print transcription to stdout instead of writing files. Mutually exclusive with `--output`; if both given, exit with error. | `false` |
 | `--language` | `-l` | Force a source language (auto-detect by default) | `None` |
+| `--quiet` | `-q` | Suppress Whisper's progress logging | `false` |
+| `--version` | | Print version and exit | |
 
 **Behavior:**
 
 - Each input file produces one output file named `<filename>.<format>`.
-- With `--stdout`, transcriptions print to stdout separated by `=== filename.mp4 ===` headers.
+- With `--stdout`, transcriptions print to stdout in the chosen format (including srt/vtt timestamps) separated by `=== filename.mp4 ===` headers.
+- `--stdout` and `--output` are mutually exclusive; providing both is an error.
 - Invalid files produce a clear error; processing continues to the next file.
-- Progress is shown per file (Whisper logs to stderr by default).
+- Progress is shown per file (Whisper logs to stderr). Use `--quiet` to suppress.
+- Device selection (CPU/GPU) uses Whisper's auto-detect default; no flag for v1.
+
+**Examples:**
+
+```
+whisper-cli interview.mp4 --model small --format srt
+whisper-cli *.wav --stdout --language en
+whisper-cli a.mp3 b.mp3 -o ./out -f vtt
+```
 
 ## Architecture
 
@@ -73,7 +85,8 @@ whisper/
 | File not found | Skip with error message, continue to next file |
 | Unsupported format | Catch ffmpeg/Whisper error, report, continue to next file |
 | Invalid model name | Click validates against allowed choices, exits with usage help |
-| Keyboard interrupt | Clean exit, no partial output files |
+| Output dir not writable | Error and exit with code 2 before processing any files |
+| Keyboard interrupt | Clean exit; already-completed files are kept, in-progress file's output is deleted. With `--stdout`, partial output may already have been printed. |
 
 **Exit codes:**
 
@@ -90,7 +103,7 @@ whisper/
 
 **Integration tests:**
 
-- `test_transcriber.py` — actual transcription with a short (~5s) test audio file using `tiny` model.
+- `test_transcriber.py` — actual transcription with a short (~5s) test audio file using `tiny` model. Test fixture is a generated sine-wave `.wav` file committed to `tests/fixtures/test_audio.wav`.
 
 **Out of scope:** Whisper accuracy, exhaustive audio format coverage.
 
