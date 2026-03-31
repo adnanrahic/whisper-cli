@@ -52,10 +52,12 @@ def main(files, model, output, fmt, stdout, language, quiet):
         click.echo("Error: No valid input files.", err=True)
         sys.exit(2)
 
-    # Validate output directory if specified
-    if output and not os.access(output, os.W_OK):
-        click.echo(f"Error: Output directory not writable: {output}", err=True)
-        sys.exit(2)
+    # Create output directory if it doesn't exist
+    if output:
+        os.makedirs(output, exist_ok=True)
+        if not os.access(output, os.W_OK):
+            click.echo(f"Error: Output directory not writable: {output}", err=True)
+            sys.exit(2)
 
     if quiet:
         logging.getLogger("whisper").setLevel(logging.ERROR)
