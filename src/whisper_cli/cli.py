@@ -1,3 +1,4 @@
+import multiprocessing
 import os
 import sys
 import logging
@@ -131,4 +132,5 @@ def main(inputs, model, output, fmt, stdout, language, quiet):
 
 
 if __name__ == "__main__":
+    multiprocessing.freeze_support()
     main()
