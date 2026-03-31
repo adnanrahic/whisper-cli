@@ -66,7 +66,7 @@ def main(inputs, model, output, fmt, stdout, language, quiet):
         if is_youtube_url(item):
             try:
                 click.echo(f"Downloading: {item}", err=True)
-                temp_dir, audio_path, title = download_audio(item, quiet=quiet)
+                temp_dir, audio_path, title = download_audio(item, quiet=True)
                 temp_dirs.append(temp_dir)
                 resolved.append((sanitize_filename(title), audio_path))
             except Exception as e:

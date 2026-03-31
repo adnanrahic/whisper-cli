@@ -37,6 +37,7 @@ def download_audio(url: str, quiet: bool = True) -> tuple[str, str, str]:
         "outtmpl": os.path.join(temp_dir, "%(id)s.%(ext)s"),
         "quiet": quiet,
         "no_warnings": quiet,
+        "noprogress": quiet,
     }
 
     try:
