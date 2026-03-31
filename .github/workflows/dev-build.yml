@@ -49,6 +49,10 @@ jobs:
       - name: Build binary
         run: pyinstaller whisper-cli.spec --noconfirm
 
+      - name: Ad-hoc sign (macOS)
+        if: runner.os == 'macOS'
+        run: codesign --force --sign - ./dist/${{ matrix.binary_name }}
+
       - name: Smoke test
         run: ./dist/${{ matrix.binary_name }} --version
 

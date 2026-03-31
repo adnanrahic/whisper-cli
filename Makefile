@@ -12,10 +12,16 @@ install-dev: ## Install project with dev dependencies
 	pip install -e ".[dev]"
 	pip install pyinstaller
 
-build: ## Build standalone binary
+build: ## Build standalone binary (ad-hoc signed on macOS)
 	pyinstaller whisper-cli.spec --noconfirm
-	@echo ""
-	@echo "Binary created at ./dist/whisper-cli"
+	@if [ "$$(uname)" = "Darwin" ]; then \
+		codesign --force --sign - ./dist/whisper-cli; \
+		echo ""; \
+		echo "Binary created and signed at ./dist/whisper-cli"; \
+	else \
+		echo ""; \
+		echo "Binary created at ./dist/whisper-cli"; \
+	fi
 	@du -sh ./dist/whisper-cli
 
 clean: ## Remove build artifacts
