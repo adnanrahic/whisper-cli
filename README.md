@@ -76,17 +76,19 @@ whisper-cli interview.mp4 --model small
 
 ### YouTube videos
 
-Pass YouTube URLs directly — audio is downloaded automatically:
+Pass YouTube URLs directly — audio is downloaded automatically.
+
+**Important:** Always quote URLs in your shell to prevent `?` and `&` from being interpreted as special characters.
 
 ```bash
-whisper-cli https://www.youtube.com/watch?v=VIDEO_ID
-whisper-cli https://youtu.be/VIDEO_ID --model small --format json
+whisper-cli "https://www.youtube.com/watch?v=VIDEO_ID"
+whisper-cli "https://youtu.be/VIDEO_ID" --model small --format json
 ```
 
 Mix local files and YouTube URLs in one command:
 
 ```bash
-whisper-cli interview.mp4 https://youtu.be/VIDEO_ID --output ./transcripts
+whisper-cli interview.mp4 "https://youtu.be/VIDEO_ID" --output ./transcripts
 ```
 
 Supported URL formats: `youtube.com/watch?v=`, `youtu.be/`, `youtube.com/shorts/`

@@ -230,3 +230,148 @@ class TestCliYoutubeInput:
         ]
         runner.invoke(main, ["https://youtu.be/abc", "--stdout"])
         mock_cleanup.assert_called_once_with(str(tmp_path / "tempdir"))
+
+
+class TestCliMixedInputsAndFormats:
+    """Test multiple inputs (local files + YouTube URLs) with various output formats."""
+
+    SEGMENTS = [
+        {"start": 0.0, "end": 2.5, "text": " Hello world."},
+        {"start": 2.5, "end": 5.0, "text": " This is a test."},
+    ]
+
+    @patch("whisper_cli.cli.cleanup_temp_dir")
+    @patch("whisper_cli.cli.load_model")
+    @patch("whisper_cli.cli.transcribe_file")
+    @patch("whisper_cli.cli.download_audio")
+    @patch("whisper_cli.cli.is_youtube_url", side_effect=lambda x: x.startswith("https://"))
+    @patch("whisper_cli.cli.check_ffmpeg", return_value=True)
+    def test_mixed_inputs_write_files_for_each(self, mock_ffmpeg, mock_yt, mock_download, mock_transcribe, mock_load, mock_cleanup, runner, tmp_path):
+        # Local files
+        vid1 = tmp_path / "interview.mp4"
+        vid1.write_bytes(b"fake")
+        vid2 = tmp_path / "meeting.wav"
+        vid2.write_bytes(b"fake")
+        # YouTube mocks
+        yt_audio1 = tmp_path / "yt1.mp3"
+        yt_audio1.write_bytes(b"fake")
+        yt_audio2 = tmp_path / "yt2.mp3"
+        yt_audio2.write_bytes(b"fake")
+        mock_download.side_effect = [
+            (str(tmp_path / "tmp1"), str(yt_audio1), "My YouTube Video"),
+            (str(tmp_path / "tmp2"), str(yt_audio2), "Another: Cool Video!"),
+        ]
+        mock_transcribe.return_value = self.SEGMENTS
+
+        out_dir = tmp_path / "out"
+        out_dir.mkdir()
+        result = runner.invoke(main, [
+            str(vid1),
+            "https://youtu.be/abc",
+            str(vid2),
+            "https://youtu.be/def",
+            "--output", str(out_dir),
+        ])
+        assert result.exit_code == 0
+        # Local files use basename without extension
+        assert (out_dir / "interview.txt").exists()
+        assert (out_dir / "meeting.txt").exists()
+        # YouTube files use sanitized title
+        assert (out_dir / "My_YouTube_Video.txt").exists()
+        assert (out_dir / "Another_Cool_Video.txt").exists()
+
+    @patch("whisper_cli.cli.cleanup_temp_dir")
+    @patch("whisper_cli.cli.load_model")
+    @patch("whisper_cli.cli.transcribe_file")
+    @patch("whisper_cli.cli.download_audio")
+    @patch("whisper_cli.cli.is_youtube_url", side_effect=lambda x: x.startswith("https://"))
+    @patch("whisper_cli.cli.check_ffmpeg", return_value=True)
+    def test_mixed_inputs_stdout_shows_all_headers(self, mock_ffmpeg, mock_yt, mock_download, mock_transcribe, mock_load, mock_cleanup, runner, tmp_path):
+        vid = tmp_path / "local.mp4"
+        vid.write_bytes(b"fake")
+        yt_audio = tmp_path / "yt.mp3"
+        yt_audio.write_bytes(b"fake")
+        mock_download.return_value = (str(tmp_path / "tmp"), str(yt_audio), "YT Title")
+        mock_transcribe.return_value = self.SEGMENTS
+
+        result = runner.invoke(main, [
+            str(vid), "https://youtu.be/abc", "--stdout",
+        ])
+        assert result.exit_code == 0
+        assert "=== local ===" in result.output
+        assert "=== YT_Title ===" in result.output
+        assert "Hello world." in result.output
+
+    @pytest.mark.parametrize("fmt,ext", [
+        ("txt", "txt"),
+        ("srt", "srt"),
+        ("vtt", "vtt"),
+        ("json", "json"),
+        ("csv", "csv"),
+        ("md", "md"),
+    ])
+    @patch("whisper_cli.cli.load_model")
+    @patch("whisper_cli.cli.transcribe_file")
+    @patch("whisper_cli.cli.check_ffmpeg", return_value=True)
+    def test_each_format_creates_correct_extension(self, mock_ffmpeg, mock_transcribe, mock_load, runner, tmp_path, fmt, ext):
+        audio = tmp_path / "test.mp4"
+        audio.write_bytes(b"fake")
+        mock_transcribe.return_value = self.SEGMENTS
+        result = runner.invoke(main, [str(audio), "--format", fmt])
+        assert result.exit_code == 0
+        assert (tmp_path / f"test.{ext}").exists()
+
+    @pytest.mark.parametrize("fmt", ["json", "csv", "md"])
+    @patch("whisper_cli.cli.load_model")
+    @patch("whisper_cli.cli.transcribe_file")
+    @patch("whisper_cli.cli.check_ffmpeg", return_value=True)
+    def test_ai_formats_stdout_contain_content(self, mock_ffmpeg, mock_transcribe, mock_load, runner, tmp_path, fmt):
+        audio = tmp_path / "test.mp4"
+        audio.write_bytes(b"fake")
+        mock_transcribe.return_value = self.SEGMENTS
+        result = runner.invoke(main, [str(audio), "--format", fmt, "--stdout"])
+        assert result.exit_code == 0
+        assert "Hello world." in result.output
+        assert "This is a test." in result.output
+
+    @patch("whisper_cli.cli.cleanup_temp_dir")
+    @patch("whisper_cli.cli.load_model")
+    @patch("whisper_cli.cli.transcribe_file")
+    @patch("whisper_cli.cli.download_audio")
+    @patch("whisper_cli.cli.is_youtube_url", side_effect=lambda x: x.startswith("https://"))
+    @patch("whisper_cli.cli.check_ffmpeg", return_value=True)
+    def test_youtube_with_json_format_writes_valid_json(self, mock_ffmpeg, mock_yt, mock_download, mock_transcribe, mock_load, mock_cleanup, runner, tmp_path):
+        import json
+        yt_audio = tmp_path / "yt.mp3"
+        yt_audio.write_bytes(b"fake")
+        mock_download.return_value = (str(tmp_path / "tmp"), str(yt_audio), "My Video")
+        mock_transcribe.return_value = self.SEGMENTS
+
+        out_dir = tmp_path / "out"
+        out_dir.mkdir()
+        result = runner.invoke(main, [
+            "https://youtu.be/abc", "--format", "json", "--output", str(out_dir),
+        ])
+        assert result.exit_code == 0
+        json_file = out_dir / "My_Video.json"
+        assert json_file.exists()
+        data = json.loads(json_file.read_text())
+        assert len(data) == 2
+        assert data[0]["text"] == "Hello world."
+        assert data[1]["start"] == 2.5
+
+    @patch("whisper_cli.cli.cleanup_temp_dir")
+    @patch("whisper_cli.cli.load_model")
+    @patch("whisper_cli.cli.transcribe_file")
+    @patch("whisper_cli.cli.download_audio")
+    @patch("whisper_cli.cli.is_youtube_url", side_effect=lambda x: x.startswith("https://"))
+    @patch("whisper_cli.cli.check_ffmpeg", return_value=True)
+    def test_partial_failure_with_mixed_inputs(self, mock_ffmpeg, mock_yt, mock_download, mock_transcribe, mock_load, mock_cleanup, runner, tmp_path):
+        # One good local file, one failing YouTube download
+        vid = tmp_path / "good.mp4"
+        vid.write_bytes(b"fake")
+        mock_download.side_effect = RuntimeError("Network error")
+        mock_transcribe.return_value = self.SEGMENTS
+
+        result = runner.invoke(main, [str(vid), "https://youtu.be/bad"])
+        assert result.exit_code == 1  # partial success
