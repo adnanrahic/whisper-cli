@@ -8,3 +8,4 @@ build/
 docs/superpowers/
 transcriptions/
 transcripts/
+.cursor/
