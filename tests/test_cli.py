@@ -168,6 +168,65 @@ class TestCliOutput:
         assert (tmp_path / "test.json").exists()
 
 
+class TestCliLanguage:
+    @patch("whisper_cli.cli.load_model")
+    @patch("whisper_cli.cli.transcribe_file")
+    @patch("whisper_cli.cli.check_ffmpeg", return_value=True)
+    def test_default_language_is_english(self, mock_ffmpeg, mock_transcribe, mock_load, runner, tmp_path):
+        audio = tmp_path / "test.mp4"
+        audio.write_bytes(b"fake")
+        mock_transcribe.return_value = [
+            {"start": 0.0, "end": 1.0, "text": " Hello."},
+        ]
+        result = runner.invoke(main, [str(audio), "--stdout"])
+        assert result.exit_code == 0
+        mock_transcribe.assert_called_once()
+        _, kwargs = mock_transcribe.call_args
+        assert kwargs["language"] == "en"
+
+    @patch("whisper_cli.cli.load_model")
+    @patch("whisper_cli.cli.transcribe_file")
+    @patch("whisper_cli.cli.check_ffmpeg", return_value=True)
+    def test_explicit_language_override(self, mock_ffmpeg, mock_transcribe, mock_load, runner, tmp_path):
+        audio = tmp_path / "test.mp4"
+        audio.write_bytes(b"fake")
+        mock_transcribe.return_value = [
+            {"start": 0.0, "end": 1.0, "text": " Hallo."},
+        ]
+        result = runner.invoke(main, [str(audio), "--language", "de", "--stdout"])
+        assert result.exit_code == 0
+        _, kwargs = mock_transcribe.call_args
+        assert kwargs["language"] == "de"
+
+    @patch("whisper_cli.cli.load_model")
+    @patch("whisper_cli.cli.transcribe_file")
+    @patch("whisper_cli.cli.check_ffmpeg", return_value=True)
+    def test_language_auto_passes_none(self, mock_ffmpeg, mock_transcribe, mock_load, runner, tmp_path):
+        audio = tmp_path / "test.mp4"
+        audio.write_bytes(b"fake")
+        mock_transcribe.return_value = [
+            {"start": 0.0, "end": 1.0, "text": " Hello."},
+        ]
+        result = runner.invoke(main, [str(audio), "--language", "auto", "--stdout"])
+        assert result.exit_code == 0
+        _, kwargs = mock_transcribe.call_args
+        assert kwargs["language"] is None
+
+    @patch("whisper_cli.cli.load_model")
+    @patch("whisper_cli.cli.transcribe_file")
+    @patch("whisper_cli.cli.check_ffmpeg", return_value=True)
+    def test_short_flag_l(self, mock_ffmpeg, mock_transcribe, mock_load, runner, tmp_path):
+        audio = tmp_path / "test.mp4"
+        audio.write_bytes(b"fake")
+        mock_transcribe.return_value = [
+            {"start": 0.0, "end": 1.0, "text": " Bonjour."},
+        ]
+        result = runner.invoke(main, [str(audio), "-l", "fr", "--stdout"])
+        assert result.exit_code == 0
+        _, kwargs = mock_transcribe.call_args
+        assert kwargs["language"] == "fr"
+
+
 class TestCliYoutubeInput:
     @patch("whisper_cli.cli.cleanup_temp_dir")
     @patch("whisper_cli.cli.load_model")

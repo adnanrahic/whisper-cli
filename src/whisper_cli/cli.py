@@ -31,7 +31,7 @@ MODEL_CHOICES = ["tiny", "base", "small", "medium", "large"]
 @click.option("-o", "--output", default=None, type=click.Path(), help="Output directory.")
 @click.option("-f", "--format", "fmt", default="txt", type=click.Choice(list(FORMATTERS.keys())), help="Output format.")
 @click.option("--stdout", is_flag=True, help="Print to stdout instead of writing files.")
-@click.option("-l", "--language", default=None, help="Force source language.")
+@click.option("-l", "--language", default="en", help="Source language (ISO 639-1 code, or \"auto\" to detect).")
 @click.option("-q", "--quiet", is_flag=True, help="Suppress Whisper progress logging.")
 @click.version_option(version=__version__)
 def main(inputs, model, output, fmt, stdout, language, quiet):
@@ -97,7 +97,8 @@ def main(inputs, model, output, fmt, stdout, language, quiet):
         for display_name, file_path in resolved:
             try:
                 click.echo(f"Transcribing: {display_name}", err=True)
-                segments = transcribe_file(whisper_model, file_path, language=language)
+                lang = None if language == "auto" else language
+                segments = transcribe_file(whisper_model, file_path, language=lang)
                 formatted = formatter(segments)
 
                 if stdout:

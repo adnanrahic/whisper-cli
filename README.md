@@ -11,7 +11,7 @@ A local command-line tool that transcribes audio/video files and YouTube videos 
 - Batch processing: pass multiple files and/or URLs in one command
 - Choose from 5 Whisper model sizes (tiny, base, small, medium, large)
 - Print to stdout or write to files
-- Auto-detects language (or force a specific one)
+- Defaults to English, with support for 99 languages via `--language`
 
 ## Prerequisites
 
@@ -56,7 +56,7 @@ pip install -e .
 whisper-cli video.mp4
 ```
 
-This creates `video.txt` in the same directory as the input file using the `base` model.
+This creates `video.txt` in the same directory as the input file using the `base` model and English as the source language.
 
 ### Choose a model
 
@@ -143,13 +143,39 @@ When processing multiple files with `--stdout`, each file's output is separated 
 [transcription]
 ```
 
-### Force a language
+### Language
 
-Whisper auto-detects the language by default. To force a specific language:
+The default source language is English (`en`). To transcribe in a different language, pass an [ISO 639-1](https://en.wikipedia.org/wiki/List_of_ISO_639-1_codes) language code:
 
 ```bash
-whisper-cli video.mp4 --language en
+whisper-cli video.mp4 --language de
+whisper-cli podcast.mp3 -l ja
 ```
+
+To let Whisper auto-detect the language from the first 30 seconds of audio, use `auto`:
+
+```bash
+whisper-cli video.mp4 --language auto
+```
+
+Auto-detection is useful when you don't know the source language or are batch-processing files in mixed languages.
+
+Common language codes:
+
+| Code | Language   |
+|------|------------|
+| `en` | English    |
+| `es` | Spanish    |
+| `fr` | French     |
+| `de` | German     |
+| `ja` | Japanese   |
+| `zh` | Chinese    |
+| `ko` | Korean     |
+| `pt` | Portuguese |
+| `ru` | Russian    |
+| `ar` | Arabic     |
+
+Whisper supports ~99 languages. See the full list in the [Whisper documentation](https://github.com/openai/whisper#available-models-and-languages).
 
 ### Suppress progress output
 
@@ -169,7 +195,7 @@ Options:
   -o, --output PATH                                Output directory
   -f, --format [txt|srt|vtt|json|csv|md]           Output format (default: txt)
   --stdout                                         Print to stdout instead of writing files
-  -l, --language TEXT                               Force source language
+  -l, --language TEXT                               Source language, ISO 639-1 code (default: en, use "auto" to detect)
   -q, --quiet                                      Suppress Whisper progress logging
   --version                                        Show version and exit
   --help                                           Show help and exit
