@@ -1,12 +1,14 @@
 # whisper-cli
 
-A local command-line tool that transcribes audio and video files to text using [OpenAI's Whisper](https://github.com/openai/whisper). Give it a `.mp4`, `.mp3`, `.wav`, or any other audio/video file, and it outputs a transcription as `.txt`, `.srt`, or `.vtt`.
+A local command-line tool that transcribes audio/video files and YouTube videos to text using [OpenAI's Whisper](https://github.com/openai/whisper). Give it local files or YouTube URLs, and it outputs transcriptions in multiple formats including plain text, subtitles, JSON, CSV, and Markdown.
 
 ## Features
 
 - Transcribe any audio/video format supported by ffmpeg
-- Multiple output formats: plain text, SRT subtitles, WebVTT subtitles
-- Batch processing: pass multiple files in one command
+- Transcribe YouTube videos directly from URLs
+- Multiple output formats: txt, srt, vtt, json, csv, markdown
+- AI-friendly formats (json, csv, md) for feeding transcripts into LLMs
+- Batch processing: pass multiple files and/or URLs in one command
 - Choose from 5 Whisper model sizes (tiny, base, small, medium, large)
 - Print to stdout or write to files
 - Auto-detects language (or force a specific one)
@@ -72,6 +74,23 @@ Larger models are more accurate but slower. The `large` model maps to the latest
 whisper-cli interview.mp4 --model small
 ```
 
+### YouTube videos
+
+Pass YouTube URLs directly — audio is downloaded automatically:
+
+```bash
+whisper-cli https://www.youtube.com/watch?v=VIDEO_ID
+whisper-cli https://youtu.be/VIDEO_ID --model small --format json
+```
+
+Mix local files and YouTube URLs in one command:
+
+```bash
+whisper-cli interview.mp4 https://youtu.be/VIDEO_ID --output ./transcripts
+```
+
+Supported URL formats: `youtube.com/watch?v=`, `youtu.be/`, `youtube.com/shorts/`
+
 ### Output formats
 
 ```bash
@@ -83,6 +102,15 @@ whisper-cli video.mp4 --format srt
 
 # WebVTT subtitles (with timestamps)
 whisper-cli video.mp4 --format vtt
+
+# JSON (structured, AI-friendly)
+whisper-cli video.mp4 --format json
+
+# CSV (tabular, easy to import)
+whisper-cli video.mp4 --format csv
+
+# Markdown (with inline timestamps, great for LLMs)
+whisper-cli video.mp4 --format md
 ```
 
 ### Multiple files
@@ -130,19 +158,19 @@ whisper-cli video.mp4 --quiet
 ## All options
 
 ```
-Usage: whisper-cli [OPTIONS] FILES...
+Usage: whisper-cli [OPTIONS] INPUTS...
 
-  Transcribe audio/video files to text using OpenAI Whisper.
+  Transcribe audio/video files or YouTube URLs to text using OpenAI Whisper.
 
 Options:
-  -m, --model [tiny|base|small|medium|large]   Whisper model size (default: base)
-  -o, --output PATH                            Output directory
-  -f, --format [txt|srt|vtt]                   Output format (default: txt)
-  --stdout                                     Print to stdout instead of writing files
-  -l, --language TEXT                           Force source language
-  -q, --quiet                                  Suppress Whisper progress logging
-  --version                                    Show version and exit
-  --help                                       Show help and exit
+  -m, --model [tiny|base|small|medium|large]       Whisper model size (default: base)
+  -o, --output PATH                                Output directory
+  -f, --format [txt|srt|vtt|json|csv|md]           Output format (default: txt)
+  --stdout                                         Print to stdout instead of writing files
+  -l, --language TEXT                               Force source language
+  -q, --quiet                                      Suppress Whisper progress logging
+  --version                                        Show version and exit
+  --help                                           Show help and exit
 ```
 
 ## Exit codes
@@ -188,10 +216,12 @@ whisper-cli/
 ├── src/whisper_cli/
 │   ├── __init__.py        # Package version
 │   ├── cli.py             # CLI entry point (click)
-│   ├── formatter.py       # Output formatting (txt, srt, vtt)
+│   ├── downloader.py      # YouTube audio download (yt-dlp)
+│   ├── formatter.py       # Output formatting (txt, srt, vtt, json, csv, md)
 │   └── transcriber.py     # Whisper model loading and transcription
 ├── tests/
 │   ├── test_cli.py        # CLI tests (mocked transcription)
+│   ├── test_downloader.py # YouTube downloader tests (mocked)
 │   ├── test_formatter.py  # Formatter unit tests
 │   └── test_transcriber.py # Integration tests (real Whisper)
 ├── whisper-cli.spec       # PyInstaller build configuration
