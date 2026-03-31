@@ -121,8 +121,8 @@ class TestCliOutput:
         ]
         result = runner.invoke(main, [str(a), str(b), "--stdout"])
         assert result.exit_code == 0
-        assert "=== a.mp4 ===" in result.output
-        assert "=== b.mp4 ===" in result.output
+        assert "=== a ===" in result.output
+        assert "=== b ===" in result.output
 
     @patch("whisper_cli.cli.load_model")
     @patch("whisper_cli.cli.transcribe_file")
@@ -153,3 +153,80 @@ class TestCliOutput:
         result = runner.invoke(main, [str(audio), "--format", "srt"])
         assert result.exit_code == 0
         assert (tmp_path / "test.srt").exists()
+
+    @patch("whisper_cli.cli.load_model")
+    @patch("whisper_cli.cli.transcribe_file")
+    @patch("whisper_cli.cli.check_ffmpeg", return_value=True)
+    def test_format_json_writes_json_file(self, mock_ffmpeg, mock_transcribe, mock_load, runner, tmp_path):
+        audio = tmp_path / "test.mp4"
+        audio.write_bytes(b"fake")
+        mock_transcribe.return_value = [
+            {"start": 0.0, "end": 1.0, "text": " Hello."},
+        ]
+        result = runner.invoke(main, [str(audio), "--format", "json"])
+        assert result.exit_code == 0
+        assert (tmp_path / "test.json").exists()
+
+
+class TestCliYoutubeInput:
+    @patch("whisper_cli.cli.cleanup_temp_dir")
+    @patch("whisper_cli.cli.load_model")
+    @patch("whisper_cli.cli.transcribe_file")
+    @patch("whisper_cli.cli.download_audio")
+    @patch("whisper_cli.cli.is_youtube_url", return_value=True)
+    @patch("whisper_cli.cli.check_ffmpeg", return_value=True)
+    def test_youtube_url_transcribes(self, mock_ffmpeg, mock_yt, mock_download, mock_transcribe, mock_load, mock_cleanup, runner, tmp_path):
+        fake_audio = tmp_path / "abc123.mp3"
+        fake_audio.write_bytes(b"fake")
+        mock_download.return_value = (str(tmp_path), str(fake_audio), "Test Video")
+        mock_transcribe.return_value = [
+            {"start": 0.0, "end": 1.0, "text": " Hello from YouTube."},
+        ]
+        result = runner.invoke(main, ["https://youtu.be/abc123", "--stdout"])
+        assert result.exit_code == 0
+        assert "Hello from YouTube." in result.output
+
+    @patch("whisper_cli.cli.cleanup_temp_dir")
+    @patch("whisper_cli.cli.load_model")
+    @patch("whisper_cli.cli.transcribe_file")
+    @patch("whisper_cli.cli.download_audio")
+    @patch("whisper_cli.cli.is_youtube_url", side_effect=lambda x: x.startswith("https://"))
+    @patch("whisper_cli.cli.check_ffmpeg", return_value=True)
+    def test_mixed_url_and_file(self, mock_ffmpeg, mock_yt, mock_download, mock_transcribe, mock_load, mock_cleanup, runner, tmp_path):
+        # Local file
+        local = tmp_path / "local.mp4"
+        local.write_bytes(b"fake")
+        # YouTube mock
+        fake_audio = tmp_path / "yt.mp3"
+        fake_audio.write_bytes(b"fake")
+        mock_download.return_value = (str(tmp_path), str(fake_audio), "YT Video")
+        mock_transcribe.return_value = [
+            {"start": 0.0, "end": 1.0, "text": " Hello."},
+        ]
+        result = runner.invoke(main, ["https://youtu.be/abc", str(local), "--stdout"])
+        assert result.exit_code == 0
+        assert "Hello." in result.output
+
+    @patch("whisper_cli.cli.cleanup_temp_dir")
+    @patch("whisper_cli.cli.download_audio", side_effect=RuntimeError("Download failed"))
+    @patch("whisper_cli.cli.is_youtube_url", return_value=True)
+    @patch("whisper_cli.cli.check_ffmpeg", return_value=True)
+    def test_youtube_download_failure_exits_2(self, mock_ffmpeg, mock_yt, mock_download, mock_cleanup, runner):
+        result = runner.invoke(main, ["https://youtu.be/bad"])
+        assert result.exit_code == 2
+
+    @patch("whisper_cli.cli.cleanup_temp_dir")
+    @patch("whisper_cli.cli.load_model")
+    @patch("whisper_cli.cli.transcribe_file")
+    @patch("whisper_cli.cli.download_audio")
+    @patch("whisper_cli.cli.is_youtube_url", return_value=True)
+    @patch("whisper_cli.cli.check_ffmpeg", return_value=True)
+    def test_temp_dirs_cleaned_up(self, mock_ffmpeg, mock_yt, mock_download, mock_transcribe, mock_load, mock_cleanup, runner, tmp_path):
+        fake_audio = tmp_path / "abc.mp3"
+        fake_audio.write_bytes(b"fake")
+        mock_download.return_value = (str(tmp_path / "tempdir"), str(fake_audio), "Video")
+        mock_transcribe.return_value = [
+            {"start": 0.0, "end": 1.0, "text": " Hello."},
+        ]
+        runner.invoke(main, ["https://youtu.be/abc", "--stdout"])
+        mock_cleanup.assert_called_once_with(str(tmp_path / "tempdir"))
