@@ -30,7 +30,7 @@ clean: ## Remove build artifacts
 test: test-unit test-integration ## Run all tests
 
 test-unit: ## Run unit tests (fast, no model download)
-	pytest tests/test_formatter.py tests/test_cli.py -v
+	pytest tests/test_formatter.py tests/test_downloader.py tests/test_cli.py -v
 
 test-integration: ## Run integration tests (downloads tiny model on first run)
 	pytest tests/test_transcriber.py -v
